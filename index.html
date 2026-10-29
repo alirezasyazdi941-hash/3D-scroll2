@@ -1,0 +1,2395 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>آخرین کتابخانه | THE LAST LIBRARY</title>
+<meta name="description" content="یک تجربه سینمایی تعاملی در مرز میان حافظه و هوش." />
+<style>
+  /* ============================================================
+     FONTS — local first, system fallback (no remote CDN)
+     ============================================================ */
+  @font-face {
+    font-family: "Vazirmatn";
+    src: local("Vazirmatn"), local("Vazir"), local("IRANSansX"), local("IRANSans");
+    font-display: swap;
+  }
+
+  :root {
+    --void: #060912;
+    --obsidian: #0B1018;
+    --amber: #FFB547;
+    --ivory: #EEF3FF;
+    --teal: #27D3C3;
+    --steel: #738091;
+    --coral: #FF786B;
+
+    --fa: "Vazirmatn", "Vazir", "IRANSans", "Segoe UI", Tahoma, system-ui, sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", "Courier New", monospace;
+    --pad: clamp(16px, 4vw, 48px);
+  }
+
+  * { box-sizing: border-box; }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: auto;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--void);
+    color: var(--ivory);
+  }
+
+  body {
+    font-family: var(--fa);
+    overflow-x: hidden;
+    line-height: 1.7;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ============================================================
+     CANVAS — single persistent fixed viewport
+     ============================================================ */
+  #scene {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    z-index: 0;
+    pointer-events: none;
+    background: var(--void);
+  }
+
+  /* ============================================================
+     LOADER
+     ============================================================ */
+  #loader {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    background: var(--void);
+    transition: opacity 0.9s ease;
+  }
+  #loader.is-done { opacity: 0; pointer-events: none; }
+  #loader .ld-track {
+    position: relative;
+    width: min(320px, 62vw);
+    height: 1px;
+    background: rgba(238, 243, 255, 0.12);
+    overflow: hidden;
+  }
+  #loader .ld-line {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, transparent, var(--amber), var(--teal), transparent);
+    transform: translateX(-100%);
+    animation: ldSweep 2.1s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+  @keyframes ldSweep {
+    0%   { transform: translateX(-100%); }
+    55%  { transform: translateX(0%); }
+    100% { transform: translateX(100%); }
+  }
+  #loader .ld-text {
+    font-size: 0.92rem;
+    color: var(--steel);
+    letter-spacing: 0.02em;
+    margin: 0;
+  }
+  #loader .ld-sub {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    color: rgba(115, 128, 145, 0.6);
+    letter-spacing: 0.22em;
+    direction: ltr;
+    margin: 0;
+  }
+
+  /* ============================================================
+     HUD
+     ============================================================ */
+  #hud {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    pointer-events: none;
+    padding: calc(var(--pad) * 0.7);
+    padding-top: max(calc(var(--pad) * 0.7), env(safe-area-inset-top));
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+
+  .hud-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .hud-chapter {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-size: 0.8rem;
+    color: var(--ivory);
+    letter-spacing: 0.03em;
+    opacity: 0.92;
+  }
+  .hud-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--amber);
+    box-shadow: 0 0 10px var(--amber);
+    transition: background 0.6s ease, box-shadow 0.6s ease;
+  }
+
+  .hud-right {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .hud-tokens {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+    direction: ltr;
+    font-family: var(--mono);
+  }
+  .hud-label {
+    font-size: 0.54rem;
+    letter-spacing: 0.24em;
+    color: rgba(115, 128, 145, 0.85);
+  }
+  #hud-token {
+    font-size: 0.82rem;
+    color: var(--ivory);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.06em;
+  }
+
+  .hud-sound {
+    pointer-events: auto;
+    appearance: none;
+    border: 1px solid rgba(238, 243, 255, 0.16);
+    background: rgba(11, 16, 24, 0.5);
+    color: var(--steel);
+    font-family: var(--mono);
+    font-size: 0.58rem;
+    letter-spacing: 0.14em;
+    padding: 7px 11px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: color 0.3s ease, border-color 0.3s ease, background 0.3s ease;
+    backdrop-filter: blur(6px);
+  }
+  .hud-sound:hover, .hud-sound:focus-visible {
+    color: var(--amber);
+    border-color: rgba(255, 181, 71, 0.5);
+  }
+  .hud-sound.is-on {
+    color: var(--teal);
+    border-color: rgba(39, 211, 195, 0.5);
+  }
+
+  .hud-bar {
+    width: 100%;
+    height: 1px;
+    background: rgba(238, 243, 255, 0.1);
+    position: relative;
+    overflow: hidden;
+  }
+  .hud-bar-fill {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(90deg, var(--amber), var(--teal));
+    transform-origin: right center;
+    transform: scaleX(0);
+    will-change: transform;
+  }
+
+  /* ============================================================
+     STORY / CHAPTERS
+     ============================================================ */
+  #story {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+  }
+
+  .chapter {
+    height: 130vh;
+    position: relative;
+    pointer-events: none;
+  }
+
+  .ch-inner {
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    height: 100svh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 0 var(--pad);
+    gap: clamp(10px, 2vh, 22px);
+    will-change: opacity, transform;
+  }
+
+  .ch-index {
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    letter-spacing: 0.4em;
+    color: rgba(255, 181, 71, 0.75);
+    margin: 0;
+    direction: ltr;
+  }
+
+  .ch-title {
+    font-size: clamp(1.9rem, 5.6vw, 4.4rem);
+    font-weight: 700;
+    line-height: 1.15;
+    margin: 0;
+    letter-spacing: -0.01em;
+    color: var(--ivory);
+    text-shadow: 0 0 60px rgba(6, 9, 18, 0.9);
+  }
+
+  .ch-line {
+    font-size: clamp(0.92rem, 2vw, 1.3rem);
+    color: rgba(238, 243, 255, 0.62);
+    max-width: 42ch;
+    margin: 0;
+    font-weight: 400;
+    text-shadow: 0 0 40px rgba(6, 9, 18, 0.95);
+  }
+
+  .ch-line .char {
+    display: inline-block;
+    opacity: 0.06;
+    will-change: opacity;
+  }
+
+  /* Chapter 14 — idea input */
+  .idea-block {
+    pointer-events: auto;
+    width: min(560px, 92vw);
+    margin-top: clamp(14px, 3vh, 30px);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .idea-row {
+    display: flex;
+    gap: 10px;
+    align-items: stretch;
+    flex-direction: row;
+  }
+
+  #idea-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    background: rgba(11, 16, 24, 0.72);
+    border: 1px solid rgba(238, 243, 255, 0.18);
+    color: var(--ivory);
+    font-family: var(--fa);
+    font-size: 0.95rem;
+    padding: 14px 16px;
+    border-radius: 3px;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    backdrop-filter: blur(8px);
+  }
+  #idea-input::placeholder { color: rgba(115, 128, 145, 0.85); }
+  #idea-input:focus-visible {
+    border-color: rgba(39, 211, 195, 0.75);
+    box-shadow: 0 0 0 3px rgba(39, 211, 195, 0.14);
+  }
+
+  .idea-btn {
+    appearance: none;
+    border: 1px solid rgba(255, 181, 71, 0.55);
+    background: rgba(255, 181, 71, 0.08);
+    color: var(--amber);
+    font-family: var(--fa);
+    font-size: 0.9rem;
+    padding: 0 20px;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+  }
+  .idea-btn:hover { background: rgba(255, 181, 71, 0.18); }
+  .idea-btn:focus-visible {
+    outline: 2px solid var(--teal);
+    outline-offset: 3px;
+  }
+  .idea-btn.ghost {
+    border-color: rgba(238, 243, 255, 0.16);
+    background: transparent;
+    color: var(--steel);
+    font-size: 0.78rem;
+    padding: 10px 16px;
+  }
+  .idea-btn.ghost:hover { color: var(--ivory); border-color: rgba(238, 243, 255, 0.35); }
+
+  .idea-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 22px;
+  }
+
+  #idea-status {
+    font-size: 0.76rem;
+    color: var(--teal);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    text-align: right;
+    flex: 1 1 auto;
+  }
+  #idea-status.show { opacity: 1; }
+
+  .closing {
+    margin: 26px 0 0;
+    font-size: clamp(0.82rem, 1.7vw, 1rem);
+    color: rgba(39, 211, 195, 0.85);
+    letter-spacing: 0.02em;
+  }
+
+  .final-reveal {
+    font-size: clamp(0.78rem, 1.6vw, 0.95rem);
+    color: rgba(238, 243, 255, 0.4);
+    max-width: 48ch;
+    margin: 0;
+    line-height: 2;
+  }
+
+  /* ============================================================
+     FALLBACK / NO-WEBGL
+     ============================================================ */
+  #webgl-error {
+    position: fixed;
+    bottom: max(18px, env(safe-area-inset-bottom));
+    right: 0;
+    left: 0;
+    z-index: 30;
+    text-align: center;
+    font-size: 0.78rem;
+    color: var(--coral);
+    padding: 0 var(--pad);
+    display: none;
+  }
+  html.no-webgl #webgl-error { display: block; }
+  html.no-webgl #hud { display: none; }
+
+  /* ============================================================
+     RESPONSIVE
+     ============================================================ */
+  @media (max-width: 720px) {
+    .chapter { height: 135vh; }
+    .ch-inner { justify-content: flex-end; padding-bottom: 16vh; gap: 8px; }
+    .ch-title { font-size: clamp(1.7rem, 8vw, 2.6rem); }
+    .ch-line { font-size: 0.92rem; max-width: 30ch; }
+    .idea-row { flex-direction: column; }
+    .idea-btn { padding: 13px 20px; }
+    .hud-sound { font-size: 0.54rem; padding: 6px 9px; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    #loader .ld-line { animation: none; transform: translateX(0); opacity: 0.6; }
+    .ch-line .char { opacity: 1 !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===================== LOADER ===================== -->
+<div id="loader" role="status" aria-live="polite">
+  <div class="ld-track"><div class="ld-line"></div></div>
+  <p class="ld-text">جهان در حال شکل‌گیری است...</p>
+  <p class="ld-sub">INITIALIZING ARCHIVE</p>
+</div>
+
+<!-- ===================== WEBGL CANVAS ===================== -->
+<canvas id="scene" aria-hidden="true"></canvas>
+
+<!-- ===================== HUD ===================== -->
+<div id="hud" aria-hidden="true">
+  <div class="hud-top">
+    <div class="hud-chapter">
+      <span class="hud-dot" id="hud-dot"></span>
+      <span id="hud-chapter-name">سکوت</span>
+    </div>
+    <div class="hud-right">
+      <button class="hud-sound" id="sound-toggle" type="button" aria-pressed="false">صدا: خاموش</button>
+      <div class="hud-tokens">
+        <span class="hud-label">TOKENS</span>
+        <span id="hud-token">0</span>
+      </div>
+    </div>
+  </div>
+  <div class="hud-bar"><div class="hud-bar-fill" id="hud-bar"></div></div>
+</div>
+
+<!-- ===================== STORY ===================== -->
+<main id="story">
+
+  <section class="chapter" data-ch="1" aria-labelledby="t1">
+    <div class="ch-inner">
+      <p class="ch-index">۰۱</p>
+      <h2 class="ch-title" id="t1">سکوت مطلق</h2>
+      <p class="ch-line" id="line1">پیش از هر جهان، چیزی نبود.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="2" aria-labelledby="t2">
+    <div class="ch-inner">
+      <p class="ch-index">۰۲</p>
+      <h2 class="ch-title" id="t2">اولین خاطره</h2>
+      <p class="ch-line">بعد، کسی چیزی را به یاد آورد.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="3" aria-labelledby="t3">
+    <div class="ch-inner">
+      <p class="ch-index">۰۳</p>
+      <h2 class="ch-title" id="t3">کتابخانه بی‌پایان</h2>
+      <p class="ch-line">هر خاطره، دری به جهانی دیگر بود.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="4" aria-labelledby="t4">
+    <div class="ch-inner">
+      <p class="ch-index">۰۴</p>
+      <h2 class="ch-title" id="t4">اقیانوس داده‌ها</h2>
+      <p class="ch-line">اطلاعات فراوان بود؛ اما معنا کمیاب.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="5" aria-labelledby="t5">
+    <div class="ch-inner">
+      <p class="ch-index">۰۵</p>
+      <h2 class="ch-title" id="t5">تولد پیوندها</h2>
+      <p class="ch-line">وقتی دانسته‌ها به هم رسیدند، چیزی تازه متولد شد.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="6" aria-labelledby="t6">
+    <div class="ch-inner">
+      <p class="ch-index">۰۶</p>
+      <h2 class="ch-title" id="t6">شهر دانش</h2>
+      <p class="ch-line">دانش، برای نخستین‌بار، معماری پیدا کرد.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="7" aria-labelledby="t7">
+    <div class="ch-inner">
+      <p class="ch-index">۰۷</p>
+      <h2 class="ch-title" id="t7">راهروی کد</h2>
+      <p class="ch-line">ایده، زبان تازه‌ای برای ساخته‌شدن پیدا کرد.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="8" aria-labelledby="t8">
+    <div class="ch-inner">
+      <p class="ch-index">۰۸</p>
+      <h2 class="ch-title" id="t8">نخستین ذهن</h2>
+      <p class="ch-line">ماشین، فقط محاسبه نمی‌کرد؛ ارتباط را می‌آموخت.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="9" aria-labelledby="t9">
+    <div class="ch-inner">
+      <p class="ch-index">۰۹</p>
+      <h2 class="ch-title" id="t9">تولد زبان</h2>
+      <p class="ch-line">هر اندیشه، راهی برای دیده‌شدن می‌خواست.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="10" aria-labelledby="t10">
+    <div class="ch-inner">
+      <p class="ch-index">۱۰</p>
+      <h2 class="ch-title" id="t10">معماری یک جهان</h2>
+      <p class="ch-line">از چند خط کد، جهانی قابل لمس ساخته شد.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="11" aria-labelledby="t11">
+    <div class="ch-inner">
+      <p class="ch-index">۱۱</p>
+      <h2 class="ch-title" id="t11">تشریح آفرینش</h2>
+      <p class="ch-line">هر لایه، وظیفه‌ای تازه برای زنده‌ماندن.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="12" aria-labelledby="t12">
+    <div class="ch-inner">
+      <p class="ch-index">۱۲</p>
+      <h2 class="ch-title" id="t12">لحظه بیداری</h2>
+      <p class="ch-line">و ناگهان، جهان پاسخ داد.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="13" aria-labelledby="t13">
+    <div class="ch-inner">
+      <p class="ch-index">۱۳</p>
+      <h2 class="ch-title" id="t13">کهکشان وب</h2>
+      <p class="ch-line">هر وب‌سایت، جهانی بود که کسی آغاز کرده بود.</p>
+    </div>
+  </section>
+
+  <section class="chapter" data-ch="14" aria-labelledby="t14">
+    <div class="ch-inner">
+      <p class="ch-index">۱۴</p>
+      <h2 class="ch-title" id="t14">جهان تو</h2>
+      <p class="ch-line">اگر جهان بعدی را تو بسازی، چه شکلی خواهد بود؟</p>
+
+      <form class="idea-block" id="idea-form" novalidate>
+        <div class="idea-row">
+          <label for="idea-input" class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);">ایده‌ات را بنویس</label>
+          <input id="idea-input" type="text" placeholder="ایده‌ات را اینجا بنویس..." autocomplete="off" maxlength="64" />
+          <button class="idea-btn" id="idea-submit" type="submit">بیا جهان تو را بسازیم</button>
+        </div>
+        <div class="idea-foot">
+          <p id="idea-status" role="status" aria-live="polite"></p>
+          <button class="idea-btn ghost" id="idea-reset" type="button" hidden>ایدهٔ تازه</button>
+        </div>
+      </form>
+
+      <p class="closing">هر آینده‌ای، از یک ایده شروع می‌شود.</p>
+    </div>
+  </section>
+
+</main>
+
+<div id="webgl-error">
+  نمایش سه‌بعدی در این مرورگر در دسترس نیست؛ اما روایت همچنان قابل خواندن است.
+</div>
+
+<!-- ===================== IMPORT MAP ===================== -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/index.js",
+    "gsap/ScrollTrigger": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/ScrollTrigger.js",
+    "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.18/dist/lenis.mjs"
+  }
+}
+</script>
+
+<script type="module">
+/* ================================================================
+   THE LAST LIBRARY — آخرین کتابخانه جهان
+   Single-file cinematic WebGL experience.
+   ================================================================ */
+
+import * as THREE from 'three';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import gsap from 'gsap';
+import ScrollTrigger from 'gsap/ScrollTrigger';
+import Lenis from 'lenis';
+
+gsap.registerPlugin(ScrollTrigger);
+
+/* ----------------------------------------------------------------
+   1. CONFIGURATION
+   ---------------------------------------------------------------- */
+const CONFIG = {
+  particlesDesktop: 60000,
+  particlesMobile: 22000,
+  tokenMax: 32768,
+  bloomStrength: 0.62,
+  totalTimeline: 140
+};
+
+const IS_MOBILE = /Android|iPhone|iPad|iPod|Mobile|Silk/i.test(navigator.userAgent)
+               || Math.min(window.innerWidth, window.innerHeight) < 620;
+const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const DPR = Math.min(window.devicePixelRatio || 1, IS_MOBILE ? 1.75 : 2);
+const COUNT = IS_MOBILE ? CONFIG.particlesMobile : CONFIG.particlesDesktop;
+
+const C_AMBER = new THREE.Color('#FFB547');
+const C_TEAL  = new THREE.Color('#27D3C3');
+const C_IVORY = new THREE.Color('#EEF3FF');
+const C_CRIMSON = new THREE.Color('#FF786B');
+
+const FONT_STACK = '"Vazirmatn","Vazir","IRANSans","Segoe UI",Tahoma,sans-serif';
+
+/* ----------------------------------------------------------------
+   2. DOM
+   ---------------------------------------------------------------- */
+const canvasEl   = document.getElementById('scene');
+const loaderEl   = document.getElementById('loader');
+const hudToken   = document.getElementById('hud-token');
+const hudBar     = document.getElementById('hud-bar');
+const hudName    = document.getElementById('hud-chapter-name');
+const hudDot     = document.getElementById('hud-dot');
+const soundBtn   = document.getElementById('sound-toggle');
+const ideaForm   = document.getElementById('idea-form');
+const ideaInput  = document.getElementById('idea-input');
+const ideaReset  = document.getElementById('idea-reset');
+const ideaStatus = document.getElementById('idea-status');
+
+/* ----------------------------------------------------------------
+   3. CHAPTER DEFINITIONS
+   ---------------------------------------------------------------- */
+const CH = [
+  { start: 0,   end: 8,   label: 'سکوت' },
+  { start: 8,   end: 16,  label: 'حافظه' },
+  { start: 16,  end: 26,  label: 'آرشیو' },
+  { start: 26,  end: 36,  label: 'اقیانوس' },
+  { start: 36,  end: 46,  label: 'پیوند' },
+  { start: 46,  end: 56,  label: 'شهر دانش' },
+  { start: 56,  end: 66,  label: 'کد' },
+  { start: 66,  end: 76,  label: 'هوش' },
+  { start: 76,  end: 86,  label: 'زبان' },
+  { start: 86,  end: 96,  label: 'معماری' },
+  { start: 96,  end: 110, label: 'تشریح' },
+  { start: 110, end: 120, label: 'بیداری' },
+  { start: 120, end: 132, label: 'کهکشان' },
+  { start: 132, end: 140, label: 'جهان تو' }
+];
+
+/* ----------------------------------------------------------------
+   4. CENTRAL ANIMATION STATE
+   ---------------------------------------------------------------- */
+const state = {
+  progress: 0,
+  cameraProgress: 0,
+  tokenCount: 0,
+  w0: 1, w1: 0, w2: 0, w3: 0, w4: 0, w5: 0,
+  archive: 0,
+  neural: 0,
+  ocean: 0,
+  code: 0,
+  codeVel: 0,
+  mind: 0,
+  language: 0,
+  architecture: 0,
+  explode: 0,
+  reveal: 0,
+  galaxy: 0,
+  colorMix: 0,
+  turb: 1,
+  opacity: 1
+};
+
+/* Independent (non-scroll) interaction state */
+const idea = { t: 0, burst: 0 };
+
+/* ----------------------------------------------------------------
+   5. SMALL UTILITIES
+   ---------------------------------------------------------------- */
+const clamp01 = v => v < 0 ? 0 : v > 1 ? 1 : v;
+const smoothstep = (e0, e1, x) => { const t = clamp01((x - e0) / (e1 - e0)); return t * t * (3 - 2 * t); };
+const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 0.7;
+const lerp = (a, b, t) => a + (b - a) * t;
+
+function setStatus(msg, show = true) {
+  if (!ideaStatus) return;
+  ideaStatus.textContent = msg;
+  ideaStatus.classList.toggle('show', show && !!msg);
+}
+
+/* ----------------------------------------------------------------
+   6. THREE.JS CORE OBJECTS
+   ---------------------------------------------------------------- */
+let renderer, scene, camera, composer, bloomPass;
+let master = null;
+let lenis = null;
+let camGroup;      // camera-attached: particles, lines, core, language layers
+let points, particleMat, particleU;
+let ideaAttr = null;
+let archiveMesh = null, cityMesh = null, codeGroup = null;
+let worldGroup = null, worldParts = [], worldLabels = [];
+let galaxyGroup = null;
+let coreGroup = null, neuralLines = null, languageGroup = null;
+let camPath = null, lookPath = null;
+
+const tmpV = new THREE.Vector3();
+const tmpV2 = new THREE.Vector3();
+const tmpO = new THREE.Object3D();
+const mouse = { x: 0, y: 0, tx: 0, ty: 0, strength: 0.35 };
+
+let clockTime = 0;
+let lastFrame = 0;
+let rafId = 0;
+let lastToken = -1;
+let lastChapter = -1;
+let lastCityValue = -1;
+
+/* ----------------------------------------------------------------
+   7. PARTICLE TARGET GENERATION
+   ---------------------------------------------------------------- */
+const NEURAL_CLUSTERS = [];
+for (let c = 0; c < 16; c++) {
+  NEURAL_CLUSTERS.push([
+    (Math.random() - 0.5) * 18,
+    (Math.random() - 0.5) * 10,
+    -10 - Math.random() * 9
+  ]);
+}
+
+const T_DUST   = new Float32Array(COUNT * 3);
+const T_SPHERE = new Float32Array(COUNT * 3);
+const T_OCEAN  = new Float32Array(COUNT * 3);
+const T_NEURAL = new Float32Array(COUNT * 3);
+const T_GALAXY = new Float32Array(COUNT * 3);
+const T_IDEA   = new Float32Array(COUNT * 3);
+const T_SEED   = new Float32Array(COUNT);
+
+function buildTargetArrays() {
+  for (let i = 0; i < COUNT; i++) {
+    const i3 = i * 3;
+    const r1 = Math.random(), r2 = Math.random(), r3 = Math.random();
+    T_SEED[i] = r1;
+
+    /* --- T0 · void dust --- */
+    {
+      const rr = 12 + Math.pow(r2, 0.55) * 32;
+      const th = r3 * Math.PI * 2;
+      const ph = Math.acos(r1 * 2 - 1);
+      T_DUST[i3]     = Math.sin(ph) * Math.cos(th) * rr;
+      T_DUST[i3 + 1] = Math.cos(ph) * rr * 0.72;
+      T_DUST[i3 + 2] = Math.sin(ph) * Math.sin(th) * rr;
+    }
+
+    /* --- T1 · first memory sphere --- */
+    {
+      const u = r1 * 2 - 1;
+      const th = r2 * Math.PI * 2;
+      const s = Math.sqrt(Math.max(0, 1 - u * u));
+      const rad = 5.2 * (0.8 + 0.32 * r3);
+      const wob = 1 + 0.16 * Math.sin(th * 3 + u * 6);
+      T_SPHERE[i3]     = s * Math.cos(th) * rad * wob;
+      T_SPHERE[i3 + 1] = u * rad * wob;
+      T_SPHERE[i3 + 2] = s * Math.sin(th) * rad * wob - 9.5;
+    }
+
+    /* --- T2 · ocean of data --- */
+    {
+      const x = (r1 - 0.5) * 48;
+      const z = 7 - r2 * 48;
+      T_OCEAN[i3]     = x;
+      T_OCEAN[i3 + 1] = -3.6 + Math.sin(x * 0.3) * 0.9 + Math.cos(z * 0.23) * 0.9 + (r3 - 0.5) * 0.5;
+      T_OCEAN[i3 + 2] = z;
+    }
+
+    /* --- T3 · neural clusters --- */
+    {
+      const c = NEURAL_CLUSTERS[i % NEURAL_CLUSTERS.length];
+      T_NEURAL[i3]     = c[0] + gauss() * 2.2;
+      T_NEURAL[i3 + 1] = c[1] + gauss() * 2.2;
+      T_NEURAL[i3 + 2] = c[2] + gauss() * 2.2;
+    }
+
+    /* --- T4 · web galaxy --- */
+    {
+      const arm = i % 3;
+      const rr = 2.5 + Math.pow(r1, 0.65) * 14;
+      const ang = arm * 2.0944 + rr * 0.42 + (r2 - 0.5) * 0.5;
+      const x = Math.cos(ang) * rr;
+      const z = Math.sin(ang) * rr * 0.62;
+      const y = (r3 - 0.5) * 0.9 * (1 - rr / 22);
+      const ct = Math.cos(0.45), st = Math.sin(0.45);
+      T_GALAXY[i3]     = x;
+      T_GALAXY[i3 + 1] = y * ct - z * st + 2.0;
+      T_GALAXY[i3 + 2] = y * st + z * ct - 16.0;
+    }
+  }
+  /* T_IDEA stays zeroed until the visitor submits an idea. */
+}
+
+/* ----------------------------------------------------------------
+   8. SHADERS
+   ---------------------------------------------------------------- */
+const PARTICLE_VERT = /* glsl */`
+  uniform float uTime;
+  uniform vec2  uMouse;
+  uniform float uAspect;
+  uniform float uMouseStrength;
+  uniform float uTurb;
+  uniform float uSize;
+  uniform float uPR;
+  uniform float uOpacity;
+  uniform float uColorMix;
+  uniform float uBurst;
+  uniform float uW0, uW1, uW2, uW3, uW4, uW5;
+
+  attribute vec3 aT0;
+  attribute vec3 aT1;
+  attribute vec3 aT2;
+  attribute vec3 aT3;
+  attribute vec3 aT4;
+  attribute vec3 aT5;
+  attribute float aSeed;
+
+  varying float vSeed;
+  varying float vGlow;
+  varying float vAlpha;
+
+  void main() {
+    vec3 p = aT0 * uW0 + aT1 * uW1 + aT2 * uW2 + aT3 * uW3 + aT4 * uW4 + aT5 * uW5;
+
+    float t = uTime * 0.32 + aSeed * 6.2831853;
+
+    /* organic drift — stronger inside the ocean field */
+    float drift = uTurb * (0.14 + 0.42 * uW2);
+    p.x += sin(t * 1.10 + p.y * 0.35) * drift;
+    p.y += cos(t * 1.30 + p.x * 0.28) * drift;
+    p.z += sin(t * 0.90 + p.y * 0.22) * drift * 0.8;
+
+    /* rolling data waves */
+    p.y += sin(p.x * 0.32 + uTime * 0.80) * 1.10 * uW2 * uTurb;
+    p.y += cos(p.z * 0.26 - uTime * 0.55) * 0.80 * uW2 * uTurb;
+
+    /* pointer repulsion, expressed in camera space */
+    vec2 mp = vec2(uMouse.x * 5.2 * uAspect, uMouse.y * 5.2);
+    vec2 d = p.xy - mp;
+    float dist = length(d);
+    float f = smoothstep(4.5, 0.0, dist) * uMouseStrength;
+    p.xy += normalize(d + vec2(0.0001)) * f * 1.8;
+    p.z  -= f * 1.2;
+
+    /* idea burst */
+    p += normalize(p + vec3(0.001)) * uBurst * 3.2;
+
+    vec4 mv = modelViewMatrix * vec4(p, 1.0);
+    gl_Position = projectionMatrix * mv;
+
+    float size = uSize * (0.45 + aSeed * 1.1) * (12.0 / max(-mv.z, 0.6));
+    gl_PointSize = clamp(size * uPR, 0.8, 30.0);
+
+    vSeed  = aSeed;
+    vGlow  = f;
+    vAlpha = uOpacity * (0.35 + 0.65 * aSeed);
+  }
+`;
+
+const PARTICLE_FRAG = /* glsl */`
+  uniform vec3  uColorA;
+  uniform vec3  uColorB;
+  uniform vec3  uColorC;
+  uniform float uColorMix;
+
+  varying float vSeed;
+  varying float vGlow;
+  varying float vAlpha;
+
+  void main() {
+    vec2 c = gl_PointCoord - vec2(0.5);
+    float d = length(c);
+    if (d > 0.5) discard;
+
+    float a = smoothstep(0.5, 0.02, d);
+    float m = clamp(uColorMix + (vSeed - 0.5) * 0.35, 0.0, 1.0);
+    vec3 col = mix(uColorA, uColorB, smoothstep(0.15, 0.90, m));
+    col = mix(col, uColorC, vGlow * 0.8);
+
+    gl_FragColor = vec4(col, a * vAlpha);
+  }
+`;
+
+const LINE_VERT = /* glsl */`
+  varying vec3 vPos;
+  void main() {
+    vPos = position;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+const LINE_FRAG = /* glsl */`
+  uniform vec3  uBase;
+  uniform vec3  uHot;
+  uniform vec2  uMouse;
+  uniform float uOpacity;
+
+  varying vec3 vPos;
+
+  void main() {
+    vec2 mp = uMouse * vec2(9.0, 6.0);
+    float d = distance(vPos.xy, mp);
+    float glow = smoothstep(7.0, 0.0, d);
+    vec3 col = mix(uBase, uHot, glow);
+    float a = uOpacity * (0.20 + 0.80 * glow);
+    gl_FragColor = vec4(col, a);
+  }
+`;
+
+/* ----------------------------------------------------------------
+   9. SCENE CONSTRUCTION
+   ---------------------------------------------------------------- */
+
+/* --- 9.1 particle field --- */
+function buildParticles() {
+  buildTargetArrays();
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(COUNT * 3), 3));
+  geo.setAttribute('aT0', new THREE.BufferAttribute(T_DUST, 3));
+  geo.setAttribute('aT1', new THREE.BufferAttribute(T_SPHERE, 3));
+  geo.setAttribute('aT2', new THREE.BufferAttribute(T_OCEAN, 3));
+  geo.setAttribute('aT3', new THREE.BufferAttribute(T_NEURAL, 3));
+  geo.setAttribute('aT4', new THREE.BufferAttribute(T_GALAXY, 3));
+  geo.setAttribute('aT5', new THREE.BufferAttribute(T_IDEA, 3));
+  geo.setAttribute('aSeed', new THREE.BufferAttribute(T_SEED, 1));
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e6);
+
+  ideaAttr = geo.getAttribute('aT5');
+
+  particleU = {
+    uTime:          { value: 0 },
+    uMouse:         { value: new THREE.Vector2(0, 0) },
+    uAspect:        { value: window.innerWidth / window.innerHeight },
+    uMouseStrength: { value: 0.35 },
+    uTurb:          { value: 1 },
+    uSize:          { value: IS_MOBILE ? 4.4 : 3.1 },
+    uPR:            { value: DPR },
+    uOpacity:       { value: 0.55 },
+    uColorMix:      { value: 0 },
+    uBurst:         { value: 0 },
+    uW0: { value: 1 }, uW1: { value: 0 }, uW2: { value: 0 },
+    uW3: { value: 0 }, uW4: { value: 0 }, uW5: { value: 0 },
+    uColorA: { value: C_AMBER.clone() },
+    uColorB: { value: C_TEAL.clone() },
+    uColorC: { value: C_IVORY.clone() }
+  };
+
+  particleMat = new THREE.ShaderMaterial({
+    uniforms: particleU,
+    vertexShader: PARTICLE_VERT,
+    fragmentShader: PARTICLE_FRAG,
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  points = new THREE.Points(geo, particleMat);
+  points.frustumCulled = false;
+  camGroup.add(points);
+}
+
+/* --- 9.2 neural connection lines --- */
+function buildNeuralLines() {
+  const SEGMENTS = IS_MOBILE ? 180 : 340;
+  const positions = new Float32Array(SEGMENTS * 6);
+
+  for (let s = 0; s < SEGMENTS; s++) {
+    const a = NEURAL_CLUSTERS[(Math.random() * NEURAL_CLUSTERS.length) | 0];
+    let b = NEURAL_CLUSTERS[(Math.random() * NEURAL_CLUSTERS.length) | 0];
+    let guard = 0;
+    while (b === a && guard++ < 8) b = NEURAL_CLUSTERS[(Math.random() * NEURAL_CLUSTERS.length) | 0];
+
+    const o = s * 6;
+    positions[o]     = a[0] + gauss() * 0.9;
+    positions[o + 1] = a[1] + gauss() * 0.9;
+    positions[o + 2] = a[2] + gauss() * 0.9;
+    positions[o + 3] = b[0] + gauss() * 0.9;
+    positions[o + 4] = b[1] + gauss() * 0.9;
+    positions[o + 5] = b[2] + gauss() * 0.9;
+  }
+
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, -14), 40);
+
+  const mat = new THREE.ShaderMaterial({
+    uniforms: {
+      uBase:    { value: new THREE.Color('#27D3C3') },
+      uHot:     { value: new THREE.Color('#EEF3FF') },
+      uMouse:   { value: new THREE.Vector2(0, 0) },
+      uOpacity: { value: 0 }
+    },
+    vertexShader: LINE_VERT,
+    fragmentShader: LINE_FRAG,
+    transparent: true,
+    depthWrite: false,
+    blending: THREE.AdditiveBlending
+  });
+
+  neuralLines = new THREE.LineSegments(geo, mat);
+  neuralLines.frustumCulled = false;
+  camGroup.add(neuralLines);
+}
+
+/* --- 9.3 first-intelligence core --- */
+function buildMindCore() {
+  coreGroup = new THREE.Group();
+  coreGroup.position.set(0, 0, -13);
+
+  const ico = new THREE.IcosahedronGeometry(2.6, 1);
+  const wire = new THREE.LineSegments(
+    new THREE.WireframeGeometry(ico),
+    new THREE.LineBasicMaterial({
+      color: 0x27D3C3, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    })
+  );
+  wire.name = 'coreWire';
+  coreGroup.add(wire);
+
+  const ringMat = new THREE.LineBasicMaterial({
+    color: 0xFFB547, transparent: true, opacity: 0,
+    blending: THREE.AdditiveBlending, depthWrite: false
+  });
+
+  for (let r = 0; r < 3; r++) {
+    const radius = 3.6 + r * 1.15;
+    const seg = 96;
+    const pts = new Float32Array((seg + 1) * 3);
+    for (let i = 0; i <= seg; i++) {
+      const a = (i / seg) * Math.PI * 2;
+      pts[i * 3]     = Math.cos(a) * radius;
+      pts[i * 3 + 1] = Math.sin(a) * radius;
+      pts[i * 3 + 2] = 0;
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.BufferAttribute(pts, 3));
+    const ring = new THREE.Line(g, ringMat);
+    ring.rotation.x = r * 1.1;
+    ring.rotation.y = r * 0.7;
+    ring.name = 'coreRing' + r;
+    coreGroup.add(ring);
+  }
+
+  coreGroup.userData.ringMat = ringMat;
+  camGroup.add(coreGroup);
+}
+
+/* --- 9.4 language layers (chapter 09) --- */
+function buildLanguageLayers() {
+  languageGroup = new THREE.Group();
+  languageGroup.position.set(0, 0, -14);
+
+  const layers = [
+    { text: 'ساختار', color: '#FFB547', y: 1.6 },
+    { text: 'ظاهر',   color: '#EEF3FF', y: 0.55 },
+    { text: 'رفتار',  color: '#27D3C3', y: -0.55 },
+    { text: 'معنا',   color: '#FF786B', y: -1.6 }
+  ];
+
+  const geos = [];
+  const mats = [];
+
+  layers.forEach((L, i) => {
+    const tex = makeTextPlaneTexture(L.text, L.color);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex, transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false
+    });
+    mats.push(mat);
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 1.05), mat);
+    mesh.position.set(0, L.y, i * -0.55);
+    languageGroup.add(mesh);
+
+    const g = new THREE.EdgesGeometry(new THREE.PlaneGeometry(4.6, 1.35));
+    geos.push(g);
+    const line = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+      color: new THREE.Color(L.color), transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    line.position.copy(mesh.position);
+    line.position.z -= 0.01;
+    languageGroup.add(line);
+  });
+
+  languageGroup.userData.mats = mats;
+  camGroup.add(languageGroup);
+}
+
+/* --- 9.5 procedural texture helpers --- */
+function makeCanvas(w, h) {
+  const c = document.createElement('canvas');
+  c.width = w; c.height = h;
+  return c;
+}
+
+function toTexture(canvas) {
+  const t = new THREE.CanvasTexture(canvas);
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.minFilter = THREE.LinearFilter;
+  t.magFilter = THREE.LinearFilter;
+  t.generateMipmaps = false;
+  t.needsUpdate = true;
+  return t;
+}
+
+function makeTextPlaneTexture(text, color) {
+  const c = makeCanvas(512, 128);
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 512, 128);
+  ctx.direction = 'rtl';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = color;
+  ctx.font = `700 58px ${FONT_STACK}`;
+  ctx.fillText(text, 256, 66);
+  return toTexture(c);
+}
+
+/* --- 9.6 archive structures (chapter 03) --- */
+function buildArchive() {
+  const N = IS_MOBILE ? 90 : 190;
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xFFB547, wireframe: true, transparent: true,
+    opacity: 0, depthWrite: false, fog: true
+  });
+
+  archiveMesh = new THREE.InstancedMesh(geo, mat, N);
+  archiveMesh.frustumCulled = false;
+
+  for (let i = 0; i < N; i++) {
+    const x = (Math.random() - 0.5) * 78;
+    const y = (Math.random() - 0.5) * 26;
+    const z = -8 - Math.random() * 72;
+    const w = 1.2 + Math.random() * 2.4;
+    const h = 2.4 + Math.random() * 9;
+    const d = 0.4 + Math.random() * 1.2;
+
+    tmpO.position.set(x, y, z);
+    tmpO.scale.set(w, h, d);
+    tmpO.rotation.set(0, Math.random() * 0.4 - 0.2, 0);
+    tmpO.updateMatrix();
+    archiveMesh.setMatrixAt(i, tmpO.matrix);
+  }
+  archiveMesh.instanceMatrix.needsUpdate = true;
+  scene.add(archiveMesh);
+}
+
+/* --- 9.7 city of knowledge (chapter 06) --- */
+const cityData = [];
+function buildCity() {
+  const gridX = IS_MOBILE ? 8 : 12;
+  const gridZ = IS_MOBILE ? 8 : 12;
+  const spacing = 3.6;
+  const total = gridX * gridZ;
+
+  const geo = new THREE.BoxGeometry(1, 1, 1);
+  const mat = new THREE.MeshBasicMaterial({
+    color: 0xEEF3FF, wireframe: true, transparent: true,
+    opacity: 0.55, depthWrite: false, fog: true
+  });
+
+  cityMesh = new THREE.InstancedMesh(geo, mat, total);
+  cityMesh.frustumCulled = false;
+
+  let idx = 0;
+  for (let gx = 0; gx < gridX; gx++) {
+    for (let gz = 0; gz < gridZ; gz++) {
+      const x = (gx - gridX / 2 + 0.5) * spacing;
+      const z = (gz - gridZ / 2 + 0.5) * spacing - 80;
+      const distFromCenter = Math.hypot(x, z + 80);
+      const hBase = 2 + Math.random() * 12 + Math.max(0, 8 - distFromCenter * 0.35);
+
+      cityData.push({
+        x, z,
+        w: 1.2 + Math.random() * 1.2,
+        d: 1.2 + Math.random() * 1.2,
+        h: hBase,
+        delay: Math.min(0.85, distFromCenter / 26) * 0.6 + Math.random() * 0.15
+      });
+      idx++;
+    }
+  }
+
+  cityMesh.position.y = -6;
+  cityMesh.visible = false;
+  scene.add(cityMesh);
+}
+
+/* --- 9.8 corridor of code (chapter 07) --- */
+const codePlanes = [];
+function buildCodeTunnel() {
+  codeGroup = new THREE.Group();
+  codeGroup.position.set(0, 0, -96);
+
+  const textures = [makeCodeTexture(1), makeCodeTexture(2), makeCodeTexture(3)];
+  const N = IS_MOBILE ? 14 : 22;
+
+  for (let i = 0; i < N; i++) {
+    const mat = new THREE.MeshBasicMaterial({
+      map: textures[i % textures.length],
+      transparent: true, opacity: 0,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false, side: THREE.DoubleSide
+    });
+
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(7, 7), mat);
+    const ang = (i / N) * Math.PI * 2;
+    const radius = 5.2 + Math.random() * 2.2;
+
+    mesh.position.set(Math.cos(ang) * radius, Math.sin(ang) * radius * 0.75, 12 - Math.random() * 36);
+    mesh.rotation.y = -ang + Math.PI / 2;
+    mesh.userData.baseZ = mesh.position.z;
+    mesh.userData.speed = 0.6 + Math.random() * 0.8;
+
+    codePlanes.push(mesh);
+    codeGroup.add(mesh);
+  }
+
+  codeGroup.visible = false;
+  scene.add(codeGroup);
+}
+
+function makeCodeTexture(seed) {
+  const W = 512, H = 512;
+  const c = makeCanvas(W, H);
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, W, H);
+  ctx.font = '15px ui-monospace, "SFMono-Regular", Consolas, monospace';
+  ctx.textBaseline = 'top';
+  ctx.direction = 'ltr';
+
+  const pool = [
+    ['const', 'archive', '=', 'await', 'library.open()'],
+    ['function', 'remember(', 'memory', ')', '{'],
+    ['  return', 'memory.map(', 'm', '=>', 'm.trace)'],
+    ['<section', 'class="world"', 'data-id="' + seed + '">'],
+    ['  .layer {', 'opacity: 0.94;', '}'],
+    ['if (', 'connections', '>', 'threshold', ')', 'emerge()'],
+    ['let', 'meaning', '=', 'nodes.reduce(', 'link', ')'],
+    ['export', 'default', 'Intelligence'],
+    ['ctx.fillStyle', '=', '"#FFB547"'],
+    ['while', '(', 'curious', ')', '{', 'learn()', '}'],
+    ['{', '"idea":', '"world"', '}'],
+    ['gsap.to(', 'universe', ',', '{', 'alive: 1', '})'],
+    ['@layer', 'structure', '{', 'grid: 12;', '}'],
+    ['AI.observe(', 'pattern', ').then(', 'create', ')']
+  ];
+
+  let y = 12;
+  let rnd = seed * 9301 + 49297;
+  const next = () => { rnd = (rnd * 9301 + 49297) % 233280; return rnd / 233280; };
+
+  while (y < H - 14) {
+    const line = pool[(next() * pool.length) | 0];
+    let x = 14 + Math.max(0, (next() * 3 | 0) - 1) * 22;
+    for (let w = 0; w < line.length; w++) {
+      const word = line[w];
+      const isKeyword = /^(const|function|return|if|let|export|while|await|default)$/.test(word);
+      const isString = /["'#]/.test(word) || /[{}();]/.test(word);
+      ctx.fillStyle = isKeyword ? '#FFB547'
+                    : isString  ? '#738091'
+                    : (next() > 0.86 ? '#27D3C3' : '#EEF3FF');
+      ctx.fillText(word, x, y);
+      x += ctx.measureText(word).width + 7;
+      if (x > W - 40) break;
+    }
+    y += 22 + (next() > 0.85 ? 10 : 0);
+  }
+
+  return toTexture(c);
+}
+
+/* --- 9.9 world architecture + exploded view (ch 10–12) --- */
+function buildWorld() {
+  worldGroup = new THREE.Group();
+  worldGroup.position.set(0, 0, -160);
+  worldGroup.visible = false;
+
+  const LAYERS = [
+    { id: 0, dir: new THREE.Vector3(0, 0,  3.4), label: 'ساختار — HTML',       color: 0xFFB547 },
+    { id: 1, dir: new THREE.Vector3(0, 0,  1.15), label: 'ظاهر — CSS',         color: 0xEEF3FF },
+    { id: 2, dir: new THREE.Vector3(0, 0, -1.15), label: 'رفتار — JavaScript',  color: 0x27D3C3 },
+    { id: 3, dir: new THREE.Vector3(0, 0, -3.4), label: 'هوش — AI',            color: 0xFF786B }
+  ];
+
+  const partDefs = [
+    /* structure layer */
+    { w: 10, h: 8,   d: 0.12, x: 0,    y: 0,     layer: 0, outline: true },
+    { w: 10, h: 0.7, d: 0.12, x: 0,    y: 3.6,   layer: 0 },
+    { w: 10, h: 0.5, d: 0.12, x: 0,    y: -4.2,  layer: 0 },
+    { w: 0.9, h: 0.35, d: 0.12, x: -3.6, y: 3.6, layer: 0 },
+    { w: 0.9, h: 0.35, d: 0.12, x: -2.4, y: 3.6, layer: 0 },
+    { w: 0.9, h: 0.35, d: 0.12, x: -1.2, y: 3.6, layer: 0 },
+    /* appearance layer */
+    { w: 9,   h: 2.4, d: 0.12, x: 0,   y: 1.6,   layer: 1 },
+    { w: 4.3, h: 1.6, d: 0.12, x: 2.3, y: -1.1,  layer: 1 },
+    { w: 4.3, h: 1.6, d: 0.12, x: -2.3, y: -1.1, layer: 1 },
+    /* behaviour layer */
+    { w: 4.3, h: 1.2, d: 0.12, x: 2.3,  y: -3.2, layer: 2 },
+    { w: 4.3, h: 1.2, d: 0.12, x: -2.3, y: -3.2, layer: 2 },
+    { w: 0.5, h: 0.5, d: 0.5,  x: 0,    y: -3.2, layer: 2 }
+  ];
+
+  partDefs.forEach(def => {
+    const L = LAYERS[def.layer];
+    const color = def.layer === 0 ? 0xFFB547 : def.layer === 1 ? 0xEEF3FF : 0x27D3C3;
+
+    let obj;
+    if (def.outline) {
+      const g = new THREE.EdgesGeometry(new THREE.PlaneGeometry(def.w, def.h));
+      obj = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+        color, transparent: true, opacity: 0.55, depthWrite: false
+      }));
+    } else {
+      const g = new THREE.EdgesGeometry(new THREE.BoxGeometry(def.w, def.h, def.d));
+      obj = new THREE.LineSegments(g, new THREE.LineBasicMaterial({
+        color, transparent: true, opacity: 0.85, depthWrite: false
+      }));
+    }
+
+    obj.position.set(def.x, def.y, 0);
+    obj.userData.base = obj.position.clone();
+    obj.userData.dir = L.dir;
+    obj.userData.layer = def.layer;
+    worldGroup.add(obj);
+    worldParts.push(obj);
+  });
+
+  /* intelligence layer core */
+  const coreGeo = new THREE.IcosahedronGeometry(0.8, 1);
+  const coreMesh = new THREE.Mesh(coreGeo, new THREE.MeshBasicMaterial({
+    color: 0xFF786B, wireframe: true, transparent: true, opacity: 0.9, depthWrite: false
+  }));
+  coreMesh.position.set(0, -3.2, 0);
+  coreMesh.userData.base = coreMesh.position.clone();
+  coreMesh.userData.dir = LAYERS[3].dir;
+  coreMesh.userData.layer = 3;
+  worldGroup.add(coreMesh);
+  worldParts.push(coreMesh);
+
+  /* live miniature website surface */
+  const siteTex = makeMiniSiteTexture();
+  const siteMat = new THREE.MeshBasicMaterial({
+    map: siteTex, transparent: true, opacity: 0,
+    depthWrite: false, depthTest: false
+  });
+  const siteMesh = new THREE.Mesh(new THREE.PlaneGeometry(10, 8), siteMat);
+  siteMesh.position.set(0, 0, 0.06);
+  siteMesh.name = 'siteSurface';
+  worldGroup.add(siteMesh);
+  worldGroup.userData.siteMat = siteMat;
+
+  /* exploded labels */
+  LAYERS.forEach((L, i) => {
+    const tex = makeLabelTexture(L.label, '#' + new THREE.Color(L.color).getHexString());
+    const mat = new THREE.SpriteMaterial({
+      map: tex, transparent: true, opacity: 0,
+      depthWrite: false, depthTest: false
+    });
+    const sprite = new THREE.Sprite(mat);
+    sprite.scale.set(3.6, 0.9, 1);
+    sprite.userData.dir = L.dir;
+    sprite.userData.layerIndex = i;
+    sprite.position.set(6.6, 3.0 - i * 1.9, 0);
+    worldGroup.add(sprite);
+    worldLabels.push(sprite);
+  });
+
+  scene.add(worldGroup);
+}
+
+function makeLabelTexture(text, color) {
+  const c = makeCanvas(512, 128);
+  const ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, 512, 128);
+  ctx.direction = 'rtl';
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'middle';
+  ctx.font = `600 40px ${FONT_STACK}`;
+  ctx.fillStyle = color;
+  ctx.fillText(text, 496, 68);
+  ctx.strokeStyle = color;
+  ctx.globalAlpha = 0.35;
+  ctx.beginPath();
+  ctx.moveTo(496, 100); ctx.lineTo(360, 100);
+  ctx.stroke();
+  return toTexture(c);
+}
+
+function makeMiniSiteTexture() {
+  const W = 640, H = 512;
+  const c = makeCanvas(W, H);
+  const ctx = c.getContext('2d');
+
+  ctx.fillStyle = '#0B1018';
+  ctx.fillRect(0, 0, W, H);
+
+  /* header */
+  ctx.fillStyle = 'rgba(238,243,255,0.06)';
+  ctx.fillRect(0, 0, W, 54);
+  ctx.fillStyle = '#27D3C3';
+  ctx.fillRect(W - 78, 20, 54, 3);
+
+  /* title */
+  ctx.direction = 'rtl';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = '#EEF3FF';
+  ctx.font = `700 46px ${FONT_STACK}`;
+  ctx.fillText('جهان بعدی', W - 40, 130);
+
+  ctx.fillStyle = 'rgba(238,243,255,0.55)';
+  ctx.font = `400 20px ${FONT_STACK}`;
+  ctx.fillText('هر آینده‌ای، از یک ایده شروع می‌شود.', W - 40, 172);
+
+  /* hero block */
+  ctx.strokeStyle = 'rgba(39,211,195,0.55)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(40, 200, W - 80, 120);
+
+  /* bars */
+  ctx.fillStyle = 'rgba(255,181,71,0.75)';
+  ctx.fillRect(60, 220, 180, 5);
+  ctx.fillStyle = 'rgba(238,243,255,0.28)';
+  ctx.fillRect(60, 236, 340, 4);
+  ctx.fillRect(60, 248, 300, 4);
+  ctx.fillRect(60, 260, 250, 4);
+
+  /* chart */
+  ctx.strokeStyle = '#27D3C3';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  const bx = 60, by = 380, bw = W - 120, bh = 80;
+  for (let i = 0; i <= 24; i++) {
+    const x = bx + (i / 24) * bw;
+    const y = by - Math.sin(i * 0.55) * bh * 0.35 - Math.cos(i * 0.24) * bh * 0.25 - bh * 0.2;
+    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.stroke();
+
+  /* footer */
+  ctx.fillStyle = 'rgba(238,243,255,0.1)';
+  ctx.fillRect(0, H - 30, W, 1);
+  ctx.fillStyle = 'rgba(115,128,145,0.85)';
+  ctx.font = `400 15px ui-monospace, monospace`;
+  ctx.direction = 'ltr';
+  ctx.textAlign = 'left';
+  ctx.fillText('THE LAST LIBRARY — LIVE', 24, H - 10);
+
+  return toTexture(c);
+}
+
+/* --- 9.10 web galaxy (chapter 13) --- */
+function buildGalaxy() {
+  galaxyGroup = new THREE.Group();
+  galaxyGroup.position.set(0, 0, -200);
+  galaxyGroup.visible = false;
+
+  const variants = IS_MOBILE ? 2 : 3;
+  const perVariant = IS_MOBILE ? 70 : 160;
+
+  for (let v = 0; v < variants; v++) {
+    const tex = makeScreenTexture(v);
+    const mat = new THREE.MeshBasicMaterial({
+      map: tex, transparent: true, opacity: 0.9,
+      side: THREE.DoubleSide, depthWrite: false
+    });
+    const geo = new THREE.PlaneGeometry(2.4, 1.5);
+    const mesh = new THREE.InstancedMesh(geo, mat, perVariant);
+    mesh.frustumCulled = false;
+
+    for (let i = 0; i < perVariant; i++) {
+      const rr = 6 + Math.pow(Math.random(), 0.62) * 62;
+      const ang = Math.random() * Math.PI * 2;
+      const x = Math.cos(ang) * rr;
+      const z = Math.sin(ang) * rr * 0.72;
+      const y = (Math.random() - 0.5) * 26 * (1 - rr / 90);
+
+      tmpO.position.set(x, y, z);
+      tmpO.rotation.set(
+        (Math.random() - 0.5) * 0.5,
+        Math.random() * Math.PI * 2,
+        (Math.random() - 0.5) * 0.3
+      );
+      const s = 0.55 + Math.random() * 1.05;
+      tmpO.scale.set(s, s, s);
+      tmpO.updateMatrix();
+      mesh.setMatrixAt(i, tmpO.matrix);
+    }
+    mesh.instanceMatrix.needsUpdate = true;
+    galaxyGroup.add(mesh);
+  }
+
+  scene.add(galaxyGroup);
+}
+
+function makeScreenTexture(variant) {
+  const W = 320, H = 200;
+  const c = makeCanvas(W, H);
+  const ctx = c.getContext('2d');
+
+  const palettes = [
+    ['#0B1018', '#27D3C3', '#EEF3FF'],
+    ['#0B1018', '#FFB547', '#EEF3FF'],
+    ['#0B1018', '#738091', '#27D3C3']
+  ];
+  const [bg, accent, ink] = palettes[variant % palettes.length];
+
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+
+  ctx.fillStyle = 'rgba(238,243,255,0.05)';
+  ctx.fillRect(0, 0, W, 22);
+
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = 0.85;
+  ctx.fillRect(W - 26, 8, 16, 3);
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = ink;
+  ctx.globalAlpha = 0.75;
+  ctx.fillRect(20, 48, 120 + Math.random() * 70, 8);
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = 'rgba(238,243,255,0.22)';
+  for (let i = 0; i < 5; i++) {
+    ctx.fillRect(20, 74 + i * 14, 90 + Math.random() * 160, 4);
+  }
+
+  ctx.strokeStyle = accent;
+  ctx.globalAlpha = 0.7;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(20, 148, W - 40, 34);
+  ctx.globalAlpha = 1;
+
+  return toTexture(c);
+}
+
+/* ----------------------------------------------------------------
+   10. CAMERA PATH
+   ---------------------------------------------------------------- */
+function buildCameraPath() {
+  const camPts = [
+    new THREE.Vector3(0, 0.6, 20),
+    new THREE.Vector3(0, 0.2, 17),
+    new THREE.Vector3(-2, 0.6, 4),
+    new THREE.Vector3(0, 1.6, -4),
+    new THREE.Vector3(0, 1.0, -20),
+    new THREE.Vector3(0, 7, -64),
+    new THREE.Vector3(0, 1, -84),
+    new THREE.Vector3(0, 0.6, -104),
+    new THREE.Vector3(0, 0.8, -124),
+    new THREE.Vector3(3.2, 2.2, -142),
+    new THREE.Vector3(0, 3, -148),
+    new THREE.Vector3(9, 6.5, -152),
+    new THREE.Vector3(0, 1.2, -156),
+    new THREE.Vector3(0, 26, -170),
+    new THREE.Vector3(0, 8, -178)
+  ];
+
+  const lookPts = [
+    new THREE.Vector3(0, 0, -10),
+    new THREE.Vector3(0, 0, -9),
+    new THREE.Vector3(0, 0, -20),
+    new THREE.Vector3(0, -1, -20),
+    new THREE.Vector3(0, 0, -30),
+    new THREE.Vector3(0, 3, -80),
+    new THREE.Vector3(0, 0, -96),
+    new THREE.Vector3(0, 0, -118),
+    new THREE.Vector3(0, 0, -130),
+    new THREE.Vector3(0, 0, -148),
+    new THREE.Vector3(0, 0, -160),
+    new THREE.Vector3(0, 0, -160),
+    new THREE.Vector3(0, 0, -160),
+    new THREE.Vector3(0, 0, -200),
+    new THREE.Vector3(0, 0, -200)
+  ];
+
+  camPath = new THREE.CatmullRomCurve3(camPts, false, 'catmullrom', 0.5);
+  lookPath = new THREE.CatmullRomCurve3(lookPts, false, 'catmullrom', 0.5);
+  camPath.arcLengthDivisions = 400;
+  lookPath.arcLengthDivisions = 400;
+}
+
+/* ----------------------------------------------------------------
+   11. MASTER TIMELINE
+   ---------------------------------------------------------------- */
+function buildTimeline() {
+  master = gsap.timeline({
+    defaults: { ease: 'none' },
+    scrollTrigger: {
+      trigger: '#story',
+      start: 'top top',
+      end: 'bottom bottom',
+      scrub: REDUCED ? 0.2 : 1.0,
+      invalidateOnRefresh: true
+    }
+  });
+
+  /* --- 11.1 camera progress, piecewise-linear per chapter --- */
+  for (let i = 0; i < CH.length; i++) {
+    const c = CH[i];
+    master.fromTo(state,
+      { cameraProgress: i / CH.length },
+      {
+        cameraProgress: (i + 1) / CH.length,
+        duration: c.end - c.start,
+        ease: 'none',
+        immediateRender: false
+      },
+      c.start
+    );
+  }
+
+  /* --- 11.2 particle morph presets --- */
+  const PRESETS = {
+    1:  [1, 0, 0, 0, 0, 0],
+    2:  [0.06, 0.94, 0, 0, 0, 0],
+    3:  [0.38, 0.42, 0, 0.20, 0, 0],
+    4:  [0, 0, 1, 0, 0, 0],
+    5:  [0, 0, 0.15, 0.85, 0, 0],
+    6:  [0.90, 0, 0, 0.10, 0, 0],
+    7:  [0.40, 0, 0, 0.60, 0, 0],
+    8:  [0, 0, 0, 1, 0, 0],
+    9:  [0, 0, 0, 0.75, 0.25, 0],
+    10: [0, 0, 0, 0.40, 0.60, 0],
+    11: [0, 0, 0, 0.25, 0.75, 0],
+    12: [0, 0, 0, 0.10, 0.90, 0],
+    13: [0, 0, 0, 0, 1, 0],
+    14: [0, 0, 0, 0, 1, 0]
+  };
+
+  let prevPreset = PRESETS[1];
+  for (let i = 2; i <= 14; i++) {
+    const startAt = CH[i - 2].end - 1.6;
+    const dur = 3.6;
+    const next = PRESETS[i];
+    master.fromTo(state,
+      { w0: prevPreset[0], w1: prevPreset[1], w2: prevPreset[2], w3: prevPreset[3], w4: prevPreset[4], w5: prevPreset[5] },
+      { w0: next[0], w1: next[1], w2: next[2], w3: next[3], w4: next[4], w5: next[5],
+        duration: dur, ease: 'sine.inOut', immediateRender: false },
+      startAt
+    );
+    prevPreset = next;
+  }
+
+  /* --- 11.3 scalar keyframes --- */
+  const lastVal = {};
+  function kf(prop, to, at, dur, ease = 'sine.inOut') {
+    const from = (prop in lastVal) ? lastVal[prop] : state[prop];
+    master.fromTo(state, { [prop]: from }, {
+      [prop]: to, duration: dur, ease, immediateRender: false
+    }, at);
+    lastVal[prop] = to;
+  }
+
+  kf('archive', 1,    15.5, 5);
+  kf('archive', 0.10, 27,   5);
+
+  kf('ocean', 1, 27, 4);
+  kf('ocean', 0, 37, 4);
+
+  kf('neural', 1,    37, 5);
+  kf('neural', 0.25, 47, 4);
+
+  kf('city', 1,    47,   5);
+  kf('city', 0.12, 57,   4);
+
+  kf('code', 1, 57, 4);
+  kf('code', 0, 67, 4);
+  kf('codeVel', 1, 57, 4);
+  kf('codeVel', 0.2, 67, 4);
+
+  kf('mind', 1, 67, 4);
+  kf('mind', 0.3, 78, 4);
+
+  kf('language', 1, 77, 4);
+  kf('language', 0, 88, 4);
+
+  kf('architecture', 1, 87, 5);
+  kf('architecture', 1, 118, 2);
+  kf('architecture', 0.18, 124, 4);
+
+  kf('explode', 1, 96, 8);
+  kf('explode', 0, 108, 4);
+
+  kf('reveal', 1, 109, 4);
+  kf('reveal', 1, 121, 2);
+  kf('reveal', 0, 126, 4);
+
+  kf('galaxy', 1, 119, 6);
+  kf('galaxy', 1, 140, 4);
+
+  kf('colorMix', 0.10, 12, 10);
+  kf('colorMix', 0.35, 30, 10);
+  kf('colorMix', 0.62, 58, 12);
+  kf('colorMix', 0.86, 92, 12);
+  kf('colorMix', 1.00, 116, 10);
+
+  kf('turb', 0.85, 10, 8);
+  kf('turb', 1.45, 30, 6);
+  kf('turb', 0.95, 44, 6);
+  kf('turb', 0.55, 68, 8);
+  kf('turb', 0.38, 100, 10);
+  kf('turb', 0.52, 132, 8);
+
+  /* --- 11.4 chapter copy fades --- */
+  CH.forEach((c, i) => {
+    const idx = i + 1;
+    const el = document.querySelector(`.chapter[data-ch="${idx}"] .ch-inner`);
+    if (!el) return;
+
+    const d = c.end - c.start;
+    const finDur = Math.min(2.4, d * 0.30);
+    const foutDur = Math.min(2.4, d * 0.30);
+
+    master.fromTo(el, { opacity: 0, y: 18 }, {
+      opacity: 1, y: 0, duration: finDur, ease: 'power2.out', immediateRender: false
+    }, c.start + 0.6);
+
+    /* chapter 14 must stay interactive to the very end */
+    if (idx !== 14) {
+      master.fromTo(el, { opacity: 1 }, {
+        opacity: 0, duration: foutDur, ease: 'power2.in', immediateRender: false
+      }, c.end - foutDur - 0.5);
+    }
+  });
+
+  /* --- 11.5 chapter 01 character-by-character line --- */
+  const line1 = document.getElementById('line1');
+  if (line1) {
+    const text = line1.textContent.trim();
+    line1.textContent = '';
+    const frag = document.createDocumentFragment();
+    for (const ch of text) {
+      const s = document.createElement('span');
+      s.className = 'char';
+      s.textContent = ch === ' ' ? '\u00A0' : ch;
+      frag.appendChild(s);
+    }
+    line1.appendChild(frag);
+
+    if (!REDUCED) {
+      master.to('#line1 .char', {
+        opacity: 1, duration: 0.4, stagger: 0.16, ease: 'none'
+      }, 1.2);
+    } else {
+      gsap.set('#line1 .char', { opacity: 1 });
+    }
+  }
+
+  /* --- 11.6 pin the timeline duration --- */
+  master.to({}, { duration: 0.01 }, CONFIG.totalTimeline - 0.01);
+
+  return master;
+}
+
+/* ----------------------------------------------------------------
+   12. PER-FRAME SYNC
+   ---------------------------------------------------------------- */
+function syncUniforms() {
+  particleU.uTime.value = clockTime;
+  particleU.uMouse.value.set(mouse.x, mouse.y);
+  particleU.uMouseStrength.value = mouse.strength;
+  particleU.uTurb.value = state.turb;
+  particleU.uColorMix.value = state.colorMix;
+  particleU.uOpacity.value = state.opacity;
+
+  particleU.uW0.value = state.w0;
+  particleU.uW1.value = state.w1;
+  particleU.uW2.value = state.w2;
+  particleU.uW3.value = state.w3;
+  particleU.uW4.value = state.w4 * (1 - idea.t);
+  particleU.uW5.value = idea.t;
+  particleU.uBurst.value = idea.burst;
+
+  if (neuralLines) {
+    neuralLines.material.uniforms.uOpacity.value = state.neural;
+    neuralLines.material.uniforms.uMouse.value.set(mouse.x, mouse.y);
+    neuralLines.visible = state.neural > 0.01;
+  }
+}
+
+function syncWorld(dt) {
+  /* archive */
+  if (archiveMesh) {
+    const a = state.archive;
+    archiveMesh.visible = a > 0.01;
+    archiveMesh.material.opacity = 0.08 + a * 0.42;
+  }
+
+  /* city */
+  if (cityMesh) {
+    cityMesh.visible = state.city > 0.01;
+    if (cityMesh.visible && Math.abs(state.city - lastCityValue) > 0.0006) {
+      lastCityValue = state.city;
+      const c = state.city;
+      for (let i = 0; i < cityData.length; i++) {
+        const b = cityData[i];
+        const g = smoothstep(b.delay, b.delay + 0.45, c);
+        const h = Math.max(0.001, b.h * g);
+        tmpO.position.set(b.x, h * 0.5, b.z);
+        tmpO.scale.set(b.w, h, b.d);
+        tmpO.rotation.set(0, 0, 0);
+        tmpO.updateMatrix();
+        cityMesh.setMatrixAt(i, tmpO.matrix);
+      }
+      cityMesh.instanceMatrix.needsUpdate = true;
+    }
+  }
+
+  /* code corridor */
+  if (codeGroup) {
+    codeGroup.visible = state.code > 0.01;
+    if (codeGroup.visible) {
+      const speed = 1.2 + state.codeVel * 7.0;
+      for (let i = 0; i < codePlanes.length; i++) {
+        const p = codePlanes[i];
+        let z = p.userData.baseZ + clockTime * speed * p.userData.speed * 0.25;
+        z = ((z + 26) % 40) - 26;
+        p.position.z = z;
+        p.material.opacity = state.code * 0.55;
+      }
+    }
+  }
+
+  /* intelligence core */
+  if (coreGroup) {
+    const m = state.mind;
+    coreGroup.visible = m > 0.01;
+    const wire = coreGroup.getObjectByName('coreWire');
+    if (wire) wire.material.opacity = m * 0.75;
+    const ringMat = coreGroup.userData.ringMat;
+    if (ringMat) ringMat.opacity = m * 0.45;
+    coreGroup.rotation.y = clockTime * 0.16;
+    coreGroup.rotation.x = Math.sin(clockTime * 0.22) * 0.16;
+  }
+
+  /* language layers */
+  if (languageGroup) {
+    const l = state.language;
+    languageGroup.visible = l > 0.01;
+    if (languageGroup.visible) {
+      const mats = languageGroup.userData.mats;
+      for (let i = 0; i < mats.length; i++) mats[i].opacity = l * 0.9;
+      languageGroup.children.forEach((c, i) => {
+        if (c.isLineSegments) c.material.opacity = l * 0.45;
+      });
+      languageGroup.rotation.y = Math.sin(clockTime * 0.2) * 0.12;
+    }
+  }
+
+  /* world architecture + exploded view */
+  if (worldGroup) {
+    const a = state.architecture;
+    worldGroup.visible = a > 0.01 || state.reveal > 0.01;
+    if (worldGroup.visible) {
+      const ex = state.explode;
+      for (let i = 0; i < worldParts.length; i++) {
+        const p = worldParts[i];
+        p.position.copy(p.userData.base).addScaledVector(p.userData.dir, ex);
+        const op = p.material.opacity;
+        p.material.opacity = (i < 12 ? 0.72 : 0.9) * a * (1 - state.reveal * 0.35);
+        /* restore intended base opacity if needed */
+        if (p.material.opacity < 0) p.material.opacity = 0;
+      }
+      for (let i = 0; i < worldLabels.length; i++) {
+        const s = worldLabels[i];
+        s.position.z = s.userData.dir.z * ex;
+        s.material.opacity = ex * 0.95;
+        s.visible = ex > 0.02;
+      }
+      const siteMat = worldGroup.userData.siteMat;
+      if (siteMat) siteMat.opacity = state.reveal;
+      const site = worldGroup.getObjectByName('siteSurface');
+      if (site) site.visible = state.reveal > 0.01;
+      worldGroup.rotation.y = Math.sin(clockTime * 0.14) * 0.05 * a;
+    }
+  }
+
+  /* galaxy */
+  if (galaxyGroup) {
+    const g = state.galaxy;
+    galaxyGroup.visible = g > 0.01;
+    if (galaxyGroup.visible) {
+      galaxyGroup.rotation.y = clockTime * 0.022;
+      for (let i = 0; i < galaxyGroup.children.length; i++) {
+        galaxyGroup.children[i].material.opacity = 0.35 + g * 0.6;
+      }
+    }
+  }
+}
+
+function syncHUD() {
+  const p = master ? clamp01(master.progress()) : 0;
+  state.progress = p;
+
+  /* token counter — narrative simulation only */
+  const tokens = Math.round(CONFIG.tokenMax * Math.pow(p, 0.85));
+  if (tokens !== lastToken) {
+    lastToken = tokens;
+    hudToken.textContent = tokens.toLocaleString('en-US');
+  }
+
+  hudBar.style.transform = `scaleX(${p.toFixed(4)})`;
+
+  /* active chapter */
+  const t = p * CONFIG.totalTimeline;
+  let ci = 0;
+  for (let i = 0; i < CH.length; i++) {
+    if (t >= CH[i].start) ci = i;
+  }
+  if (ci !== lastChapter) {
+    lastChapter = ci;
+    hudName.textContent = CH[ci].label;
+    const warm = ci < 11;
+    hudDot.style.background = warm ? '#FFB547' : '#27D3C3';
+    hudDot.style.boxShadow = `0 0 10px ${warm ? '#FFB547' : '#27D3C3'}`;
+  }
+}
+
+/* ----------------------------------------------------------------
+   13. RENDER LOOP
+   ---------------------------------------------------------------- */
+function render() {
+  rafId = requestAnimationFrame(render);
+
+  if (document.hidden) return;
+
+  const now = performance.now();
+  let dt = (now - lastFrame) / 1000;
+  lastFrame = now;
+  if (!isFinite(dt) || dt <= 0) dt = 1 / 60;
+  dt = Math.min(dt, 0.05);
+
+  clockTime += dt * (REDUCED ? 0.25 : 1);
+
+  /* smoothed pointer */
+  mouse.x = lerp(mouse.x, mouse.tx, 0.08);
+  mouse.y = lerp(mouse.y, mouse.ty, 0.08);
+
+  /* camera follows the master curve */
+  const cp = clamp01(state.cameraProgress);
+  camPath.getPointAt(cp, tmpV);
+  lookPath.getPointAt(cp, tmpV2);
+
+  camera.position.copy(tmpV);
+  camera.lookAt(tmpV2);
+
+  /* particle field & camera-attached structures ride the camera */
+  camGroup.position.copy(camera.position);
+  camGroup.quaternion.copy(camera.quaternion);
+
+  syncUniforms();
+  syncWorld(dt);
+  syncHUD();
+
+  if (composer) {
+    if (bloomPass) {
+      const velocityBoost = 1 + Math.min(0.5, Math.abs(state.codeVel) * 0.28);
+      bloomPass.strength = CONFIG.bloomStrength * velocityBoost;
+    }
+    composer.render();
+  } else {
+    renderer.render(scene, camera);
+  }
+}
+
+/* ----------------------------------------------------------------
+   14. RESIZE
+   ---------------------------------------------------------------- */
+function onResize() {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+
+  renderer.setPixelRatio(DPR);
+  renderer.setSize(w, h, false);
+
+  if (composer) {
+    composer.setSize(w, h);
+    if (bloomPass) bloomPass.setSize(w, h);
+  }
+
+  if (particleU) {
+    particleU.uAspect.value = w / h;
+    particleU.uPR.value = DPR;
+  }
+  ScrollTrigger.refresh();
+}
+
+/* ----------------------------------------------------------------
+   15. IDEA INPUT — local, procedural, honest
+   ---------------------------------------------------------------- */
+function sampleIdeaText(text) {
+  const cols = 420, rows = 110;
+  const c = makeCanvas(cols, rows);
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, cols, rows);
+
+  ctx.fillStyle = '#fff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.direction = 'rtl';
+
+  let size = Math.floor(rows * 0.62);
+  ctx.font = `700 ${size}px ${FONT_STACK}`;
+  let guard = 0;
+  while (ctx.measureText(text).width > cols * 0.9 && size > 8 && guard++ < 60) {
+    size -= 2;
+    ctx.font = `700 ${size}px ${FONT_STACK}`;
+  }
+  ctx.fillText(text, cols / 2, rows / 2 + 2);
+
+  let data;
+  try {
+    data = ctx.getImageData(0, 0, cols, rows).data;
+  } catch (e) {
+    return { pts: [], cols, rows };
+  }
+
+  const pts = [];
+  for (let y = 0; y < rows; y += 1) {
+    for (let x = 0; x < cols; x += 1) {
+      if (data[(y * cols + x) * 4] > 128) {
+        pts.push(x, y);
+      }
+    }
+  }
+  return { pts, cols, rows };
+}
+
+function buildIdeaTarget(text) {
+  const { pts, cols, rows } = sampleIdeaText(text);
+  const arr = ideaAttr.array;
+  const total = pts.length / 2;
+
+  if (total < 12) {
+    /* graceful degradation: an abstract signature instead of glyphs */
+    for (let i = 0; i < COUNT; i++) {
+      const i3 = i * 3;
+      const r = 2 + Math.random() * 6;
+      const a = Math.random() * Math.PI * 2;
+      arr[i3]     = Math.cos(a) * r;
+      arr[i3 + 1] = Math.sin(a) * r * 0.55;
+      arr[i3 + 2] = -12 + (Math.random() - 0.5) * 1.6;
+    }
+    ideaAttr.needsUpdate = true;
+    return;
+  }
+
+  const W = 15;
+  const H = W * (rows / cols);
+
+  for (let i = 0; i < COUNT; i++) {
+    const p = (i % total) * 2;
+    const px = (pts[p] / cols - 0.5) * W;
+    const py = -(pts[p + 1] / rows - 0.5) * H;
+    const i3 = i * 3;
+    arr[i3]     = px + (Math.random() - 0.5) * 0.06;
+    arr[i3 + 1] = py + (Math.random() - 0.5) * 0.06;
+    arr[i3 + 2] = -12 + (Math.random() - 0.5) * 0.6;
+  }
+  ideaAttr.needsUpdate = true;
+}
+
+let ideaPending = false;
+
+ideaForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  if (ideaPending) return;
+
+  const value = (ideaInput.value || '').trim();
+  if (!value) {
+    setStatus('اول یک ایده بنویس…');
+    ideaInput.focus();
+    return;
+  }
+
+  ideaPending = true;
+  setStatus('در حال ساخت نشانهٔ جهان تو…');
+  buildIdeaTarget(value);
+
+  /* short burst, then a stable formation */
+  gsap.killTweensOf(idea);
+  idea.burst = 0;
+  gsap.to(idea, { burst: 1, duration: 0.42, ease: 'power2.out',
+    onComplete: () => gsap.to(idea, { burst: 0, duration: 1.5, ease: 'power2.inOut' })
+  });
+  gsap.to(idea, {
+    t: 1, duration: 1.4, ease: 'power2.inOut', delay: 0.12,
+    onComplete: () => {
+      ideaPending = false;
+      setStatus('این نشانهٔ محلیِ ایدهٔ توست — نه یک مدل هوش مصنوعی متصل.');
+      ideaReset.hidden = false;
+    }
+  });
+});
+
+ideaReset.addEventListener('click', () => {
+  gsap.killTweensOf(idea);
+  gsap.to(idea, {
+    t: 0, duration: 1.0, ease: 'power2.inOut',
+    onComplete: () => {
+      ideaInput.value = '';
+      ideaReset.hidden = true;
+      setStatus('');
+      ideaInput.focus();
+    }
+  });
+});
+
+/* ----------------------------------------------------------------
+   16. OPTIONAL AMBIENT AUDIO (off by default)
+   ---------------------------------------------------------------- */
+const audio = {
+  ctx: null, gain: null, nodes: [], on: false,
+  init() {
+    if (this.ctx) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    this.ctx = new AC();
+    this.gain = this.ctx.createGain();
+    this.gain.gain.value = 0;
+    this.gain.connect(this.ctx.destination);
+
+    const filter = this.ctx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.value = 420;
+    filter.Q.value = 0.6;
+    filter.connect(this.gain);
+
+    [55, 82.5, 110.3].forEach((freq, i) => {
+      const osc = this.ctx.createOscillator();
+      osc.type = i === 2 ? 'triangle' : 'sine';
+      osc.frequency.value = freq;
+      const g = this.ctx.createGain();
+      g.gain.value = i === 2 ? 0.12 : 0.3;
+      osc.connect(g);
+      g.connect(filter);
+      osc.start();
+      this.nodes.push(osc, g);
+    });
+
+    /* slow amplitude drift */
+    const lfo = this.ctx.createOscillator();
+    lfo.frequency.value = 0.06;
+    const lfoGain = this.ctx.createGain();
+    lfoGain.gain.value = 0.02;
+    lfo.connect(lfoGain);
+    lfoGain.connect(this.gain.gain);
+    lfo.start();
+    this.nodes.push(lfo, lfoGain, filter);
+  },
+  toggle() {
+    this.init();
+    if (!this.ctx) return false;
+    if (this.ctx.state === 'suspended') this.ctx.resume();
+    this.on = !this.on;
+    const now = this.ctx.currentTime;
+    this.gain.gain.cancelScheduledValues(now);
+    this.gain.gain.setTargetAtTime(this.on ? 0.035 : 0, now, 0.7);
+    return this.on;
+  }
+};
+
+soundBtn.addEventListener('click', () => {
+  const on = audio.toggle();
+  soundBtn.textContent = on ? 'صدا: روشن' : 'صدا: خاموش';
+  soundBtn.classList.toggle('is-on', !!on);
+  soundBtn.setAttribute('aria-pressed', String(!!on));
+});
+
+/* ----------------------------------------------------------------
+   17. POINTER
+   ---------------------------------------------------------------- */
+function onPointerMove(e) {
+  const x = (e.clientX / window.innerWidth) * 2 - 1;
+  const y = -(e.clientY / window.innerHeight) * 2 + 1;
+  mouse.tx = x;
+  mouse.ty = y;
+  mouse.strength = 0.55;
+}
+function onPointerLeave() {
+  mouse.tx = 0;
+  mouse.ty = 0;
+  mouse.strength = 0.22;
+}
+
+window.addEventListener('pointermove', onPointerMove, { passive: true });
+window.addEventListener('pointerleave', onPointerLeave, { passive: true });
+
+/* ----------------------------------------------------------------
+   18. INITIALIZATION
+   ---------------------------------------------------------------- */
+function hideLoader() {
+  if (!loaderEl) return;
+  loaderEl.classList.add('is-done');
+  window.setTimeout(() => {
+    if (loaderEl && loaderEl.parentNode) loaderEl.parentNode.removeChild(loaderEl);
+  }, 1100);
+}
+
+function failGracefully(reason) {
+  console.warn('[THE LAST LIBRARY] WebGL initialization failed:', reason);
+  document.documentElement.classList.add('no-webgl');
+  hideLoader();
+  /* ensure the narrative remains readable */
+  document.querySelectorAll('.ch-inner').forEach(el => {
+    el.style.opacity = '1';
+    el.style.transform = 'none';
+  });
+}
+
+function init() {
+  /* ---- renderer ---- */
+  renderer = new THREE.WebGLRenderer({
+    canvas: canvasEl,
+    antialias: !IS_MOBILE,
+    powerPreference: 'high-performance',
+    alpha: false,
+    stencil: false,
+    depth: true
+  });
+  renderer.setPixelRatio(DPR);
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  renderer.setClearColor(0x060912, 1);
+  renderer.outputColorSpace = THREE.SRGBColorSpace;
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 1.05;
+
+  /* ---- scene / camera ---- */
+  scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x060912);
+  scene.fog = new THREE.Fog(0x060912, 45, 300);
+
+  camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 0.1, 800);
+  camera.position.set(0, 0.6, 20);
+
+  camGroup = new THREE.Group();
+  scene.add(camGroup);
+
+  /* ---- geometry ---- */
+  buildCameraPath();
+  buildParticles();
+  buildNeuralLines();
+  buildMindCore();
+  buildLanguageLayers();
+  buildArchive();
+  buildCity();
+  buildCodeTunnel();
+  buildWorld();
+  buildGalaxy();
+
+  /* ---- post-processing ---- */
+  if (!IS_MOBILE) {
+    try {
+      composer = new EffectComposer(renderer);
+      composer.setPixelRatio(DPR);
+      composer.setSize(window.innerWidth, window.innerHeight);
+      composer.addPass(new RenderPass(scene, camera));
+
+      bloomPass = new UnrealBloomPass(
+        new THREE.Vector2(window.innerWidth, window.innerHeight),
+        CONFIG.bloomStrength,
+        0.55,
+        0.72
+      );
+      composer.addPass(bloomPass);
+    } catch (e) {
+      console.warn('[THE LAST LIBRARY] Bloom unavailable, falling back to direct rendering.', e);
+      composer = null;
+      bloomPass = null;
+    }
+  }
+
+  /* ---- scrolling ---- */
+  if (!REDUCED) {
+    lenis = new Lenis({
+      duration: 1.1,
+      easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true,
+      touchMultiplier: 1.6
+    });
+
+    lenis.on('scroll', ScrollTrigger.update);
+
+    gsap.ticker.add((time) => {
+      lenis.raf(time * 1000);
+    });
+
+    gsap.ticker.lagSmoothing(0);
+  }
+
+  /* ---- timeline ---- */
+  buildTimeline();
+
+  /* ---- events ---- */
+  window.addEventListener('resize', onResize, { passive: true });
+  window.addEventListener('orientationchange', () => setTimeout(onResize, 220), { passive: true });
+
+  /* ---- visibility aware ---- */
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) lastFrame = performance.now();
+  });
+
+  /* ---- go ---- */
+  lastFrame = performance.now();
+  render();
+
+  /* refresh after layout settles */
+  requestAnimationFrame(() => {
+    ScrollTrigger.refresh();
+    hideLoader();
+  });
+
+  console.info(
+    `%c THE LAST LIBRARY %c ${COUNT.toLocaleString('en-US')} particles · ` +
+    `${IS_MOBILE ? 'mobile path (no bloom)' : 'desktop path (bloom)'} · ` +
+    `${REDUCED ? 'reduced motion' : 'full motion'} `,
+    'background:#FFB547;color:#060912;font-weight:700;padding:2px 6px;',
+    'background:#0B1018;color:#27D3C3;padding:2px 6px;'
+  );
+}
+
+/* ----------------------------------------------------------------
+   19. BOOT
+   ---------------------------------------------------------------- */
+(function boot() {
+  /* loader timeout-safe fallback */
+  const fallback = window.setTimeout(() => {
+    if (document.getElementById('loader') && !document.getElementById('loader').classList.contains('is-done')) {
+      console.warn('[THE LAST LIBRARY] Loader timeout — revealing narrative fallback.');
+      hideLoader();
+    }
+  }, 12000);
+
+  try {
+    init();
+    window.clearTimeout(fallback);
+  } catch (err) {
+    window.clearTimeout(fallback);
+    failGracefully(err);
+  }
+})();
+
+/* ----------------------------------------------------------------
+   20. UNLOAD SAFETY
+   ---------------------------------------------------------------- */
+window.addEventListener('pagehide', () => {
+  if (rafId) cancelAnimationFrame(rafId);
+  if (lenis) lenis.destroy();
+  if (renderer) renderer.dispose();
+}, { once: true });
+</script>
+
+</body>
+</html>
